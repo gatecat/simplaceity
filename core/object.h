@@ -1,9 +1,9 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include "containers.h"
 #include "hashlib.h"
 #include "idstring.h"
-#include "containers.h"
 #include "preface.h"
 
 #include <memory>

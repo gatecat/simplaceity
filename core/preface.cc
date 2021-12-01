@@ -11,4 +11,3 @@ assertion_failure::assertion_failure(std::string msg, std::string expr_str, std:
 }
 
 NPNR_NAMESPACE_END
-

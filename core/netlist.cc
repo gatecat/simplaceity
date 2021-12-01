@@ -1,0 +1,5 @@
+#include "netlist.h"
+
+NPNR_NAMESPACE_BEGIN
+
+NPNR_NAMESPACE_END

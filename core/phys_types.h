@@ -3,8 +3,8 @@
 
 #include "preface.h"
 
-#include <limits>
 #include <cmath>
+#include <limits>
 
 NPNR_NAMESPACE_BEGIN
 
@@ -24,7 +24,9 @@ struct Point
 
 struct Box
 {
-    Box() : x0(std::numeric_limits<dist_t>::max()), y0(std::numeric_limits<dist_t>::max()), x1(std::numeric_limits<dist_t>::min()), y1(std::numeric_limits<dist_t>::min()){};
+    Box()
+            : x0(std::numeric_limits<dist_t>::max()), y0(std::numeric_limits<dist_t>::max()),
+              x1(std::numeric_limits<dist_t>::min()), y1(std::numeric_limits<dist_t>::min()){};
     Box(Point p) : x0(p.x), y0(p.y), x1(p.x), y1(p.y){};
     Box(Point p0, Point p1) : x0(p0.x), y0(p0.y), x1(p1.x), y1(p1.y){};
     Box(dist_t x0, dist_t y0, dist_t x1, dist_t y1) : x0(x0), y0(y0), x1(x1), y1(y1){};

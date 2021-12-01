@@ -1,10 +1,10 @@
 #ifndef CONTEXT_H
 #define CONTEXT_H
-#include "preface.h"
 #include "idstring.h"
+#include "preface.h"
 
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 NPNR_NAMESPACE_BEGIN
 

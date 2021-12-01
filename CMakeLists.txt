@@ -12,3 +12,16 @@ add_subdirectory(thirdparty/pybind11)
 include_directories(core)
 aux_source_directory(core CORE_FILES)
 pybind11_add_module(simplaceity ${CORE_FILES})
+
+file(GLOB_RECURSE CLANGFORMAT_FILES *.cc *.h)
+string(REGEX REPLACE "[^;]*/thirdparty[^;]*" "" CLANGFORMAT_FILES "${CLANGFORMAT_FILES}")
+string(REGEX REPLACE "[^;]*/generated[^;]*" "" CLANGFORMAT_FILES "${CLANGFORMAT_FILES}")
+
+add_custom_target(
+    clangformat
+    COMMAND clang-format
+    -style=file
+    -i
+    ${CLANGFORMAT_FILES}
+)
+

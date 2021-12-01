@@ -3,8 +3,8 @@
 #define PREFACE_H
 
 #include <stdexcept>
-#include <string>
 #include <stdint.h>
+#include <string>
 
 #ifndef NPNR_NAMESPACE
 #define NPNR_NAMESPACE Simplaceity

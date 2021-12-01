@@ -189,8 +189,8 @@ template <typename T> class indexed_store
         const T &operator*() { return base->at(store_index<T>(index)); }
         template <typename It, typename S> friend class enumerated_iterator;
     };
-    const_iterator begin() const { return iterator{this, 0}; }
-    const_iterator end() const { return iterator{this, index_t(slots.size())}; }
+    const_iterator begin() const { return const_iterator{this, 0}; }
+    const_iterator end() const { return const_iterator{this, index_t(slots.size())}; }
 
     template <typename S> struct enumerated_item
     {

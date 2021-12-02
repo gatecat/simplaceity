@@ -6,6 +6,8 @@
 #include "phys_types.h"
 #include "sso_array.h"
 
+#include <optional>
+
 NPNR_NAMESPACE_BEGIN
 
 struct Module;
@@ -29,7 +31,7 @@ enum PortUse
 // The 'prototype' of a cell port. Shared between all instances of a cell
 struct CellPort : BaseObj<CellPort>
 {
-    CellPort(IdString name, PortDir dir) : BaseObj(name), dir(dir), use(SIGNAL){};
+    CellPort(IdString name, PortDir dir) : BaseObj(name), dir(dir), use(SIGNAL), offset(0, 0){};
     PortDir dir;
     PortUse use;
     Point offset;
@@ -83,6 +85,8 @@ struct Net : BaseObj<Net>
     PortRef driver{};
     // Number of driving ports attached to the net
     index_t driver_count = 0;
+    // Approximate location of external pins on the net
+    std::vector<Point> ext_pins;
 };
 
 struct PortInst
@@ -105,6 +109,8 @@ struct CellInst : BaseObj<CellInst, IdString>
     store_index<CellType> type;
     IdString owner; // the process that created this CellInst; so we can reliably undo/redo transformations like CTS
     SSOArray<PortInst, 6> ports; // In the same order as the CellType
+    std::optional<CellPlacement> placement;
+    bool fixed = false;
 };
 
 // The contents of a cell
@@ -130,5 +136,5 @@ struct Netlist
     object_store<Module> modules;
 };
 
-#endif
 NPNR_NAMESPACE_END
+#endif

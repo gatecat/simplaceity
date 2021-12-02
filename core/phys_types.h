@@ -84,9 +84,12 @@ enum class Dir : uint8_t
 
 struct Orientation
 {
+    Orientation() : dir(Dir::NORTH), mirror_x(false), mirror_y(false){};
+    Orientation(Dir dir, bool mirror_x = false, bool mirror_y = false)
+            : dir(dir), mirror_x(mirror_x), mirror_y(mirror_y){};
     Dir dir;
-    bool mirror_x : 1;
-    bool mirror_y : 1;
+    bool mirror_x;
+    bool mirror_y;
 };
 
 NPNR_NAMESPACE_END

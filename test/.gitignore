@@ -1,0 +1,6 @@
+*.blif
+*.json
+*.log
+*.ap
+*.spi
+*.vst

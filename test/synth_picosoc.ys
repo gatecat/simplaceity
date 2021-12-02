@@ -1,0 +1,13 @@
+read_liberty -lib ../../open_pdk/C4M.Sky130/libs.ref/FlexLib/liberty/FlexLib_slow.lib
+read_verilog ../../picorv32/picosoc/picosoc.v ../../picorv32/picorv32.v ../../picorv32/picosoc/spimemio.v ../../picorv32/picosoc/simpleuart.v
+read_verilog top_picosoc.v
+
+synth -flatten -top picosoc_top
+dfflibmap -liberty ../../open_pdk/C4M.Sky130/libs.ref/FlexLib/liberty/FlexLib_slow.lib
+opt
+abc -D 200000 -liberty ../../open_pdk/C4M.Sky130/libs.ref/FlexLib/liberty/FlexLib_slow.lib
+setundef -zero
+clean -purge
+write_blif picosoc_top.blif
+write_json picosoc_top.json
+stat

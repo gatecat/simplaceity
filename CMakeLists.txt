@@ -7,6 +7,9 @@ set(WARN_FLAGS "-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializ
 set(CMAKE_CXX_FLAGS_DEBUG "${WARN_FLAGS} -fPIC -ggdb -pipe")
 set(CMAKE_CXX_FLAGS_RELEASE "${WARN_FLAGS} -fPIC -O3 -g -pipe -fopenmp")
 
+find_package (Eigen3 REQUIRED NO_MODULE)
+include_directories(${EIGEN3_INCLUDE_DIRS})
+add_definitions(${EIGEN3_DEFINITIONS})
 
 add_subdirectory(thirdparty/pybind11)
 include_directories(core)

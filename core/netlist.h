@@ -126,6 +126,8 @@ struct Module : BaseObj<Module>
     std::vector<store_index<Net>> port_nets;
     // Set of power and ground nets for fast access
     pool<store_index<Net>> supply_nets;
+    // Placement grid
+    Size grid;
 };
 
 struct Netlist

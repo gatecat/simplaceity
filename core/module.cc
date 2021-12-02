@@ -80,6 +80,11 @@ struct PyModule
         return PyCellInst{ctx, mod_idx, access().addInst(ctx->id(name), ctx->id(type)).inst.index};
     }
     PyCellInst getInst(const std::string &name) { return PyCellInst{ctx, mod_idx, mod().insts[ctx->id(name)].index}; }
+    void setGrid(dist_t width, dist_t height)
+    {
+        mod().grid.width = width;
+        mod().grid.height = height;
+    }
 };
 
 PyModule PyCellType::intoModule()
@@ -116,11 +121,15 @@ PYBIND11_MODULE(simplaceity, m)
             .def_readwrite("x", &Point::x)
             .def_readwrite("y", &Point::y);
 
-    py::class_<Orientation>(m, "Orientation")
-            .def(py::init<>())
-            .def_readwrite("dir", &Orientation::dir)
-            .def_readwrite("mirror_x", &Orientation::mirror_x)
-            .def_readwrite("mirror_y", &Orientation::mirror_y);
+    py::enum_<Orientation>(m, "Orientation")
+            .value("N", Orientation::N)
+            .value("E", Orientation::E)
+            .value("S", Orientation::S)
+            .value("W", Orientation::W)
+            .value("FN", Orientation::FN)
+            .value("FE", Orientation::FE)
+            .value("FS", Orientation::FS)
+            .value("FW", Orientation::FW);
 
     py::class_<PyCellType>(m, "PyCellType")
             .def("setSize", &PyCellType::setSize)
@@ -147,7 +156,8 @@ PYBIND11_MODULE(simplaceity, m)
             .def("addNet", &PyModule::addNet)
             .def("getNet", &PyModule::getNet)
             .def("addInst", &PyModule::addInst)
-            .def("getInst", &PyModule::getInst);
+            .def("getInst", &PyModule::getInst)
+            .def("setGrid", &PyModule::setGrid);
 
     py::class_<PyPlcContext>(m, "PyContext")
             .def(py::init<>())

@@ -8,6 +8,19 @@
 
 NPNR_NAMESPACE_BEGIN
 
+enum struct Orientation : uint8_t
+{
+    /*  transpose flip-y flip-x  */
+    N = 0b000,
+    E = 0b100,
+    S = 0b011,
+    W = 0b111,
+    FN = 0b010,
+    FE = 0b110,
+    FS = 0b001,
+    FW = 0b101,
+};
+
 struct Point
 {
     Point() : x(0), y(0){};
@@ -20,6 +33,19 @@ struct Point
     dist_t manhattan_distance(const Point &other) const { return std::abs(x - other.x) + std::abs(y - other.y); }
 
     dist_t x, y;
+
+    Point transform(Orientation o) const
+    {
+        uint8_t val = uint8_t(o);
+        Point result;
+        result.x = (val & 0b100) ? y : x;
+        result.y = (val & 0b100) ? x : y;
+        if (val & 0b010)
+            result.y = -result.y;
+        if (val & 0b001)
+            result.x = -result.x;
+        return result;
+    }
 };
 
 struct Box
@@ -65,31 +91,6 @@ inline Box operator+(const Point &p, const Box &b) { return Box(b.x0 + p.x, b.y0
 struct Size
 {
     dist_t width, height;
-};
-
-enum class Axis : uint8_t
-{
-    H,
-    V,
-    UNKNOWN
-};
-
-enum class Dir : uint8_t
-{
-    NORTH,
-    SOUTH,
-    EAST,
-    WEST,
-};
-
-struct Orientation
-{
-    Orientation() : dir(Dir::NORTH), mirror_x(false), mirror_y(false){};
-    Orientation(Dir dir, bool mirror_x = false, bool mirror_y = false)
-            : dir(dir), mirror_x(mirror_x), mirror_y(mirror_y){};
-    Dir dir;
-    bool mirror_x;
-    bool mirror_y;
 };
 
 NPNR_NAMESPACE_END

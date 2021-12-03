@@ -12,7 +12,7 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 add_definitions(${EIGEN3_DEFINITIONS})
 
 add_subdirectory(thirdparty/pybind11)
-include_directories(core)
+include_directories(core place)
 aux_source_directory(core CORE_FILES)
 aux_source_directory(place PLACER_FILES)
 

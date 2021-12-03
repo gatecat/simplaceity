@@ -1,8 +1,12 @@
 #include <pybind11/pybind11.h>
 
 #include "context.h"
+#include "global_placer.h"
+#include "log.h"
 #include "netlist.h"
 #include "netlist_access.h"
+
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -85,6 +89,7 @@ struct PyModule
         mod().grid.width = width;
         mod().grid.height = height;
     }
+    void globalPlace() { global_placer(*ctx, mod()); }
 };
 
 PyModule PyCellType::intoModule()
@@ -98,8 +103,13 @@ PyModule PyCellType::intoModule()
 
 struct PyPlcContext
 {
-    PyPlcContext() : ctx(std::make_shared<Context>()){};
+    PyPlcContext() : ctx(std::make_shared<Context>())
+    {
+        if (log_streams.empty())
+            log_streams.emplace_back(&std::cerr, LogLevel::LOG_MSG);
+    };
     std::shared_ptr<Context> ctx;
+    void setUnits(dist_t unit_per_um) { ctx->unit_per_um = unit_per_um; }
     PyCellType addCellType(const std::string &name)
     {
         return {ctx, ctx->netlist().cell_types.add(ctx->id(name))->index};
@@ -157,10 +167,12 @@ PYBIND11_MODULE(simplaceity, m)
             .def("getNet", &PyModule::getNet)
             .def("addInst", &PyModule::addInst)
             .def("getInst", &PyModule::getInst)
-            .def("setGrid", &PyModule::setGrid);
+            .def("setGrid", &PyModule::setGrid)
+            .def("globalPlace", &PyModule::globalPlace);
 
     py::class_<PyPlcContext>(m, "PyContext")
             .def(py::init<>())
+            .def("setUnits", &PyPlcContext::setUnits)
             .def("addCellType", &PyPlcContext::addCellType)
             .def("getCellType", &PyPlcContext::getCellType);
 

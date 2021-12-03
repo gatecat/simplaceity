@@ -18,6 +18,8 @@ flexlib = db.getRootLibrary().getLibrary("FlexLib")
 from simplaceity import *
 ctx = PyContext()
 
+ctx.setUnits(u(1))
+
 def conv_dir(d):
     if d == Hur.Net.Direction.IN: return PortDir.IN
     elif d == Hur.Net.Direction.OUT: return PortDir.OUT
@@ -47,12 +49,16 @@ for lib_cell in flexlib.getCells():
 top_cell = CRL.Blif.load("picosoc_top")
 
 top_type = ctx.addCellType(top_cell.getName())
+ext_count = 0
 for net in top_cell.getNets():
     if not net.isExternal():
         continue
     if net.getDirection() == Hur.Net.Direction.UNDEFINED:
         continue
     p = top_type.addPort(net.getName(), conv_dir(net.getDirection()))
+    ext_count += 1
+
+top_type.setSize(u(4800), u(4800))
 
 m = top_type.intoModule()
 
@@ -63,4 +69,20 @@ for inst in top_cell.getInstances():
     for plug in inst.getConnectedPlugs():
         i.connectPort(plug.getMasterNet().getName(), plug.getNet().getName())
 
+m.setGrid(u(1.2), u(12))
+
+pin_idx = 0
+for net in top_cell.getNets():
+    if not net.isExternal():
+        continue
+    if net.getDirection() == Hur.Net.Direction.UNDEFINED:
+        continue
+    # TODO: real pin locations
+    if pin_idx < ext_count//2:
+        m.getNet(net.getName()).addExtPin(0, u(2.4) * pin_idx)
+    else:
+        m.getNet(net.getName()).addExtPin(u(4800), u(2.4) * (pin_idx - ext_count//2))
+    pin_idx += 1
+
+m.globalPlace()
 

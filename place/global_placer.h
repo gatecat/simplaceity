@@ -2,6 +2,7 @@
 #define PLACER_H
 
 #include "context.h"
+#include "netlist.h"
 
 NPNR_NAMESPACE_BEGIN
 

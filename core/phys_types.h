@@ -53,7 +53,7 @@ struct Box
     Box()
             : x0(std::numeric_limits<dist_t>::max()), y0(std::numeric_limits<dist_t>::max()),
               x1(std::numeric_limits<dist_t>::min()), y1(std::numeric_limits<dist_t>::min()){};
-    Box(Point p) : x0(p.x), y0(p.y), x1(p.x), y1(p.y){};
+    explicit Box(Point p) : x0(p.x), y0(p.y), x1(p.x), y1(p.y){};
     Box(Point p0, Point p1) : x0(p0.x), y0(p0.y), x1(p1.x), y1(p1.y){};
     Box(dist_t x0, dist_t y0, dist_t x1, dist_t y1) : x0(x0), y0(y0), x1(x1), y1(y1){};
 
@@ -75,8 +75,8 @@ struct Box
     {
         x0 = std::min(x0, b.x0);
         y0 = std::min(y0, b.y0);
-        x1 = std::max(x1, b.x0);
-        y1 = std::max(y1, b.y0);
+        x1 = std::max(x1, b.x1);
+        y1 = std::max(y1, b.y1);
     }
 
     dist_t area() const { return std::max(x1 - x0, dist_t(0)) * std::max(y1 - y0, dist_t(0)); }

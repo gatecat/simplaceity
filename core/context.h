@@ -1,8 +1,8 @@
 #ifndef CONTEXT_H
 #define CONTEXT_H
+#include "deterministic_rng.h"
 #include "idstring.h"
 #include "preface.h"
-#include "deterministic_rng.h"
 
 #include <memory>
 #include <unordered_map>
@@ -27,6 +27,7 @@ struct Context
     const Netlist &netlist() const { return *_netlist; }
 
     DeterministicRNG rng;
+    dist_t unit_per_um = 1000;
 };
 
 NPNR_NAMESPACE_END

@@ -14,7 +14,9 @@ add_definitions(${EIGEN3_DEFINITIONS})
 add_subdirectory(thirdparty/pybind11)
 include_directories(core)
 aux_source_directory(core CORE_FILES)
-pybind11_add_module(simplaceity ${CORE_FILES})
+aux_source_directory(place PLACER_FILES)
+
+pybind11_add_module(simplaceity ${CORE_FILES} ${PLACER_FILES})
 
 file(GLOB_RECURSE CLANGFORMAT_FILES *.cc *.h)
 string(REGEX REPLACE "[^;]*/thirdparty[^;]*" "" CLANGFORMAT_FILES "${CLANGFORMAT_FILES}")

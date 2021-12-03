@@ -2,6 +2,7 @@
 #define CONTEXT_H
 #include "idstring.h"
 #include "preface.h"
+#include "deterministic_rng.h"
 
 #include <memory>
 #include <unordered_map>
@@ -24,6 +25,8 @@ struct Context
     std::unique_ptr<Netlist> _netlist;
     Netlist &netlist() { return *_netlist; }
     const Netlist &netlist() const { return *_netlist; }
+
+    DeterministicRNG rng;
 };
 
 NPNR_NAMESPACE_END

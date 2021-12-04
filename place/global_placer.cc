@@ -721,6 +721,16 @@ struct GlobalPlacer
         log_info("    legalised HPWL: %.fum\n", double(hpwl()) / ctx.unit_per_um);
     }
 
+    void bind()
+    {
+        for (int idx : var2idx) {
+            auto &data = insts.at(idx);
+            auto &inst = mod.insts[store_index<CellInst>(idx)];
+            inst.placement = CellPlacement{.loc = Point(data.col * grid.width, data.row * grid.height),
+                                           .orient = data.get_orient()};
+        }
+    }
+
     void run()
     {
         init(); // Initial place
@@ -732,6 +742,7 @@ struct GlobalPlacer
         for (int i = 0; i < 30; i++) {
             do_iter(i);
         }
+        bind();
     }
 };
 } // namespace

@@ -1,5 +1,5 @@
-#ifndef PLACER_H
-#define PLACER_H
+#ifndef GLOBAL_PLACER_H
+#define GLOBAL_PLACER_H
 
 #include "context.h"
 #include "netlist.h"

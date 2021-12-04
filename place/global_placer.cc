@@ -80,7 +80,7 @@ struct GlobalPlacer
     InstData &inst_data(store_index<CellInst> inst) { return insts.at(inst.idx()); }
 
     // Solver
-    const float alpha = 0.1;
+    const float alpha = 0.02;
 
     struct PortOrPin
     {
@@ -102,12 +102,13 @@ struct GlobalPlacer
         auto pin_pos = [&](Point pin) { return yaxis ? (double(pin.y) / grid.height) : (double(pin.x) / grid.width); };
         es.reset();
 
-        // Find the bounds of the net in this axis, and the ports that correspond to these bounds
-        PortOrPin lbport{{}, std::numeric_limits<double>::max()}, ubport{{}, std::numeric_limits<double>::min()};
-
         for (auto &net : mod.nets) {
+            if (net->type == NetType::POWER || net->type == NetType::GROUND || net->type == NetType::CLOCK)
+                continue;
             if ((index_t(net->inst_ports.size()) + index_t(net->ext_pins.size())) < 2)
                 continue;
+            // Find the bounds of the net in this axis, and the ports that correspond to these bounds
+            PortOrPin lbport{{}, std::numeric_limits<double>::max()}, ubport{{}, std::numeric_limits<double>::lowest()};
             // Find the bounding ports/pins of the net
             for (auto pin : net->ext_pins) {
                 lbport = lbport.min({{}, pin_pos(pin)});
@@ -177,12 +178,12 @@ struct GlobalPlacer
                        [&](int idx) { return solver_pos(store_index<CellInst>(idx)); });
         es.solve(vals, solverTolerance);
         for (int i = 0; i < int(var2idx.size()); i++) {
-            auto &data = insts.at(i);
+            auto &data = insts.at(var2idx.at(i));
             (yaxis ? data.solver_y : data.solver_x) = vals.at(i);
         }
     }
 
-    void build_solve_direction(bool yaxis, int iter)
+    void build_solve_direction(bool yaxis, int iter, int inner_iters = 5)
     {
         // Back-annotate positions
         for (int idx : var2idx) {
@@ -194,7 +195,7 @@ struct GlobalPlacer
         }
         // Inner iterative solver loop
         // (because we linearise the HPWL problem using bound2bound and net weights)
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < inner_iters; i++) {
             EquationSystem es(var2idx.size(), var2idx.size());
             build_equations(es, yaxis, iter);
             solve_equations(es, yaxis);
@@ -212,10 +213,10 @@ struct GlobalPlacer
         }
     }
 
-    void do_solve(int iter)
+    void do_solve(int iter, int inner_iters = 5)
     {
-        build_solve_direction(false /* x */, iter);
-        build_solve_direction(true /* y */, iter);
+        build_solve_direction(false /* x */, iter, inner_iters);
+        build_solve_direction(true /* y */, iter, inner_iters);
     }
 
     // Spreader
@@ -414,7 +415,7 @@ struct GlobalPlacer
         int best_pivot = -1;
         double left_used = total_used;
         double right_used = 0;
-        for (int pivot = 0; pivot < job_insts.size(); pivot++) {
+        for (int pivot = 0; pivot < int(job_insts.size()); pivot++) {
             double deltaU =
                     std::abs((left_used / std::max(1.0, left_avail)) - (right_used / std::max(1.0, right_avail)));
             if (deltaU < best_deltaU) {
@@ -583,7 +584,8 @@ struct GlobalPlacer
 
     // Strict legaliser
     std::vector<std::vector<bool>> occupied;
-    bool can_legalise_to(const InstData &inst, int row, int col) {
+    bool can_legalise_to(const InstData &inst, int row, int col)
+    {
         // TODO: multi height instances
         NPNR_ASSERT(inst.height == 1);
         if (row < 0 || row >= rows)
@@ -598,7 +600,8 @@ struct GlobalPlacer
         }
         return true;
     }
-    void mark_occupied(const InstData &inst) {
+    void mark_occupied(const InstData &inst)
+    {
         // TODO: multi height instances
         NPNR_ASSERT(inst.height == 1);
         int col0 = inst.flip_x ? (inst.col - (inst.width - 1)) : inst.col;
@@ -606,7 +609,8 @@ struct GlobalPlacer
         for (int x = col0; x <= col1; x++)
             occupied.at(inst.row).at(x) = true;
     }
-    void legalise_cell(int inst) {
+    void legalise_cell(int inst)
+    {
         const CellInst &cell_inst = mod.insts[store_index<CellInst>(inst)];
         InstData &data = insts.at(inst);
         // Already legal
@@ -630,7 +634,7 @@ struct GlobalPlacer
             do {
                 cx = (data.col - radius) + ctx.rng.rng(2 * radius + 1);
                 cy = (data.row - radius) + ctx.rng.rng(2 * radius + 1);
-            } while (cx < 0 || cx >= cols ||  cy < 0 || cy >= rows);
+            } while (cx < 0 || cx >= cols || cy < 0 || cy >= rows);
             if (can_legalise_to(data, cy, cx)) {
                 // Found a free location
                 //    TODO: take wirelength into account rather than just finding first free
@@ -641,11 +645,11 @@ struct GlobalPlacer
             }
         }
         if (!done)
-            log_error("Failed to legalise instance '%s'\n",
-                cell_inst.name.c_str(&ctx));
+            log_error("Failed to legalise instance '%s'\n", cell_inst.name.c_str(&ctx));
     }
 
-    void do_legalise() {
+    void do_legalise()
+    {
         // Reset
         occupied.resize(rows);
         for (int y = 0; y < rows; y++) {
@@ -661,9 +665,7 @@ struct GlobalPlacer
         for (int idx : var2idx) {
             to_legalise.emplace_back(idx, insts.at(idx).width * insts.at(idx).height);
         }
-        std::stable_sort(to_legalise.begin(), to_legalise.end(), [](auto a, auto b) {
-            return a.second > b.second;
-        });
+        std::stable_sort(to_legalise.begin(), to_legalise.end(), [](auto a, auto b) { return a.second > b.second; });
         for (auto entry : to_legalise) {
             legalise_cell(entry.first);
         }
@@ -700,12 +702,16 @@ struct GlobalPlacer
     int64_t hpwl()
     {
         int64_t total_hpwl = 0;
-        for (auto &net : mod.nets)
+        for (auto &net : mod.nets) {
+            if (net->type == NetType::POWER || net->type == NetType::GROUND || net->type == NetType::CLOCK)
+                continue;
             total_hpwl += int64_t(net_hpwl(*net));
+        }
         return total_hpwl;
     }
 
-    void do_iter(int i) {
+    void do_iter(int i)
+    {
         log_info("Iteration %d:\n", i);
         do_solve(i);
         log_info("    solved HPWL: %.fum\n", double(hpwl()) / ctx.unit_per_um);
@@ -719,8 +725,10 @@ struct GlobalPlacer
     {
         init(); // Initial place
         log_info("Starting random place HPWL: %.fum\n", double(hpwl()) / ctx.unit_per_um);
-        do_solve(-1);
-        log_info("Initial solved HPWL: %.fum\n", double(hpwl()) / ctx.unit_per_um);
+        for (int i = 0; i < 10; i++) {
+            do_solve(-1, 1);
+            log_info("    initial solver iter %d HPWL: %.fum\n", i, double(hpwl()) / ctx.unit_per_um);
+        }
         for (int i = 0; i < 30; i++) {
             do_iter(i);
         }

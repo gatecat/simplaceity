@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(WARN_FLAGS "-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-array-bounds")
 set(CMAKE_CXX_FLAGS_DEBUG "${WARN_FLAGS} -fPIC -ggdb -pipe")
 set(CMAKE_CXX_FLAGS_RELEASE "${WARN_FLAGS} -fPIC -O3 -g -pipe -fopenmp")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${WARN_FLAGS} -fPIC -O3 -g -pipe -fopenmp")
 
 find_package (Eigen3 REQUIRED NO_MODULE)
 include_directories(${EIGEN3_INCLUDE_DIRS})

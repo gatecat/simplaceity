@@ -183,4 +183,9 @@ PYBIND11_MODULE(simplaceity, m)
             .value("GROUND", PortUse::GROUND)
             .value("POWER", PortUse::POWER)
             .value("CLOCK", PortUse::CLOCK);
+    py::enum_<NetType>(m, "NetType")
+            .value("SIGNAL", NetType::SIGNAL)
+            .value("GROUND", NetType::GROUND)
+            .value("POWER", NetType::POWER)
+            .value("CLOCK", NetType::CLOCK);
 }

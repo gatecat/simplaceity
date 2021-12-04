@@ -84,5 +84,9 @@ for net in top_cell.getNets():
         m.getNet(net.getName()).addExtPin(u(4800), u(2.4) * (pin_idx - ext_count//2))
     pin_idx += 1
 
+m.getNet("vss").setType(NetType.GROUND)
+m.getNet("vdd").setType(NetType.POWER)
+m.getNet("io_in(0)").setType(NetType.CLOCK)
+
 m.globalPlace()
 

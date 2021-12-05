@@ -595,7 +595,7 @@ struct GlobalPlacer
         for (int x = col0; x <= col1; x++) {
             if (x < 0 || x >= cols)
                 return false;
-            if (occupied.at(row).at(col))
+            if (occupied.at(row).at(x))
                 return false;
         }
         return true;
@@ -606,13 +606,17 @@ struct GlobalPlacer
         NPNR_ASSERT(inst.height == 1);
         int col0 = inst.flip_x ? (inst.col - (inst.width - 1)) : inst.col;
         int col1 = inst.flip_x ? inst.col : (inst.col + (inst.width - 1));
-        for (int x = col0; x <= col1; x++)
+        for (int x = col0; x <= col1; x++) {
+            NPNR_ASSERT(!occupied.at(inst.row).at(x));
             occupied.at(inst.row).at(x) = true;
+        }
+        // log_info("    mark ([%d, %d], %d)\n", col0, col1, inst.row);
     }
     void legalise_cell(int inst)
     {
         const CellInst &cell_inst = mod.insts[store_index<CellInst>(inst)];
         InstData &data = insts.at(inst);
+        // log_info("legalising %s\n", cell_inst.name.c_str(&ctx));
         // Already legal
         if (can_legalise_to(data, data.row, data.col)) {
             mark_occupied(data);

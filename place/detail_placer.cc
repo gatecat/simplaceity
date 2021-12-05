@@ -56,7 +56,7 @@ struct DetailPlacer
     std::pair<int, int> cell_hbounds(const InstData &data, const PlaceKey &plc)
     {
         int x0 = plc.col - (plc.flip_x ? (data.width - 1) : 0);
-        int x1 = plc.col + (plc.flip_x ? 0 : (data.width + 1));
+        int x1 = plc.col + (plc.flip_x ? 0 : (data.width - 1));
         return {x0, x1};
     }
 
@@ -66,7 +66,13 @@ struct DetailPlacer
         auto &data = insts.at(inst);
         auto [x0, x1] = cell_hbounds(data, data.plc);
         for (int x = x0; x <= x1; x++) {
-            NPNR_ASSERT(loc2inst.at(x, data.plc.row) == -1);
+            if (loc2inst.at(x, data.plc.row) != -1) {
+                index_t other = loc2inst.at(x, data.plc.row);
+                auto [ox0, ox1] = cell_hbounds(insts.at(other), insts.at(other).plc);
+                log_error("Overlap %s ([%d, %d], %d) onto %s ([%d, %d], %d)\n",
+                          mod.insts[store_index<CellInst>(inst)].name.c_str(&ctx), x0, x1, data.plc.row,
+                          mod.insts[store_index<CellInst>(other)].name.c_str(&ctx), ox0, ox1, insts.at(other).plc.row);
+            }
             loc2inst.at(x, data.plc.row) = inst;
         }
     }

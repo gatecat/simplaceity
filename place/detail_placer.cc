@@ -125,6 +125,7 @@ struct DetailPlacer
                 ny1 = 1;
             }
         }
+        int64_t hpwl() const { return std::max((box.x1 - box.x0), 0) + std::max((box.y1 - box.y0), 0); }
     };
 
     struct IncrementalMoveChange
@@ -143,11 +144,51 @@ struct DetailPlacer
         };
         std::vector<HPWLBox> new_net_bounds;
         std::array<Axis, 2> axes;
+        int64_t wirelen_delta = 0;
     };
+    std::vector<HPWLBox> net_bounds;
+    int64_t curr_wirelen = 0;
 
     bool ignore_net(store_index<Net> net)
     {
         return false; // TODO
+    }
+
+    HPWLBox get_net_box(const Net &net)
+    {
+        HPWLBox result{};
+        for (auto p : net.ext_pins)
+            result.add_pin(p);
+        for (auto p : net.inst_ports)
+            result.add_pin(port_loc(p));
+        return result;
+    }
+
+    CellPlacement get_placement(const InstData &inst)
+    {
+        return CellPlacement{.loc = Point(inst.col * grid.width, row_pos(inst.row)), .orient = inst.get_orient()};
+    }
+
+    void init_move_change(IncrementalMoveChange &mc)
+    {
+        mc.new_net_bounds = net_bounds;
+        mc.wirelen_delta = 0;
+        for (int i = 0; i < 2; i++) {
+            mc.axes.at(i).already_bounds_changed.resize(net_bounds.size(), IncrementalMoveChange::NO_CHANGE);
+        }
+    }
+
+    void reset_move_change(IncrementalMoveChange &mc)
+    {
+        for (int i = 0; i < 2; i++) {
+            auto &axis = mc.axes.at(i);
+            for (auto bc : axis.bounds_changed_nets) {
+                axis.already_bounds_changed.at(bc.idx()) = IncrementalMoveChange::NO_CHANGE;
+                mc.new_net_bounds.at(bc.idx()) = net_bounds.at(bc.idx());
+            }
+            axis.bounds_changed_nets.clear();
+        }
+        mc.wirelen_delta = 0;
     }
 
     void update_move_change(IncrementalMoveChange &mc, index_t inst, CellPlacement old_plc)
@@ -233,7 +274,72 @@ struct DetailPlacer
         }
     }
 
-    void run() {}
+    void compute_cost_changes(IncrementalMoveChange &mc)
+    {
+        for (int axis = 0; axis < 2; axis++) {
+            for (auto net : mc.axes.at(axis).bounds_changed_nets)
+                if (mc.axes.at(axis).already_bounds_changed.at(net.idx()) == IncrementalMoveChange::FULL_RECOMPUTE &&
+                    (axis == 0 || mc.axes.at(axis - 1).already_bounds_changed.at(net.idx()) !=
+                                          IncrementalMoveChange::FULL_RECOMPUTE))
+                    mc.new_net_bounds.at(net.idx()) = get_net_box(mod.nets[net]);
+        }
+        mc.wirelen_delta = 0;
+        for (auto net : mc.axes.at(0).bounds_changed_nets)
+            mc.wirelen_delta += mc.new_net_bounds.at(net.idx()).hpwl() - net_bounds.at(net.idx()).hpwl();
+        for (auto net : mc.axes.at(1).bounds_changed_nets)
+            if (mc.axes.at(0).already_bounds_changed.at(net.idx()) == IncrementalMoveChange::NO_CHANGE)
+                mc.wirelen_delta += mc.new_net_bounds.at(net.idx()).hpwl() - net_bounds.at(net.idx()).hpwl();
+    }
+
+    void commit_cost_changes(IncrementalMoveChange &mc)
+    {
+        for (int i = 0; i < 2; i++) {
+            for (auto net : mc.axes.at(i).bounds_changed_nets)
+                net_bounds.at(net.idx()) = mc.new_net_bounds.at(net.idx());
+        }
+        curr_wirelen += mc.wirelen_delta;
+    }
+
+    IncrementalMoveChange move_change;
+
+    void init()
+    {
+        // Init insts
+        insts.resize(mod.insts.size());
+        for (auto &inst : mod.insts) {
+            auto &data = insts.at(inst->index.idx());
+            auto &type = netlist.cell_types[inst->type];
+            NPNR_ASSERT((type.size.width % grid.width) == 0);
+            data.width = type.size.width / grid.width;
+            NPNR_ASSERT((type.size.height % grid.height) == 0);
+            data.height = type.size.height / grid.height;
+            data.fixed = inst->fixed;
+            const CellPlacement &plc = inst->placement.value();
+            if (!data.fixed) {
+                // Assert on grid
+                NPNR_ASSERT((plc.loc.x % grid.width) == 0);
+                NPNR_ASSERT((plc.loc.y % (2 * grid.height)) == 0);
+            }
+            data.col = plc.loc.x / grid.width;
+            data.row = (inst->placement->loc.y / (2 * grid.height)) * 2;
+            if (inst->placement->orient == Orientation::FN || inst->placement->orient == Orientation::S)
+                data.row -= 1;
+            if (inst->placement->orient == Orientation::FN || inst->placement->orient == Orientation::FS)
+                data.flip_x = true;
+            else
+                data.flip_x = false;
+        }
+        // Init nets
+        net_bounds.resize(mod.nets.size());
+        curr_wirelen = 0;
+        for (auto &net : mod.nets) {
+            net_bounds.at(net->index.idx()) = get_net_box(*net);
+            curr_wirelen += net_bounds.at(net->index.idx()).hpwl();
+        }
+        init_move_change(move_change);
+    }
+
+    void run() { init(); }
 };
 } // namespace
 

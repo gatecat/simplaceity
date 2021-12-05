@@ -31,7 +31,7 @@ struct GlobalPlacer
         Orientation get_orient() const
         {
             // Odd rows are flipped in y
-            return (row % 1) ? (flip_x ? Orientation::FN : Orientation::S)
+            return (row % 2) ? (flip_x ? Orientation::FN : Orientation::S)
                              : (flip_x ? Orientation::FS : Orientation::N);
         }
     };

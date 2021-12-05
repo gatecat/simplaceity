@@ -19,12 +19,11 @@ struct DetailPlacer
     int rows;
     int cols;
 
-    struct InstData
+    struct PlaceKey
     {
-        int row, col;
-        int width, height;
-        bool fixed = false;
-        bool flip_x = false;
+        int row;
+        int col;
+        bool flip_x;
         Orientation get_orient() const
         {
             // Odd rows are flipped in y
@@ -32,24 +31,32 @@ struct DetailPlacer
                              : (flip_x ? Orientation::FS : Orientation::N);
         }
     };
+
+    struct InstData
+    {
+        PlaceKey plc;
+        int width, height;
+        bool fixed = false;
+    };
     std::vector<InstData> insts;
     std::vector<index_t> moveable;
 
     dist_t row_pos(int row) { return ((row + 1) / 2) * (2 * grid.height); }
 
-    Point cell_loc(const InstData &data) { return Point(data.col * grid.width, row_pos(data.row)); }
+    Point cell_loc(const PlaceKey &plc) { return Point(plc.col * grid.width, row_pos(plc.row)); }
+    Point cell_loc(const InstData &data) { return cell_loc(data.plc); }
     Point port_loc(PortRef port)
     {
         auto &data = insts.at(port.inst.idx());
         auto &port_data = netlist.cell_types[mod.insts[port.inst].type].ports[port.port];
         Point origin = cell_loc(data);
-        return origin + port_data.offset.transform(data.get_orient());
+        return origin + port_data.offset.transform(data.plc.get_orient());
     }
 
-    std::pair<int, int> cell_hbounds(const InstData &data, int base_col)
+    std::pair<int, int> cell_hbounds(const InstData &data, const PlaceKey &plc)
     {
-        int x0 = data.col - (data.flip_x ? (data.width - 1) : 0);
-        int x1 = data.col + (data.flip_x ? 0 : (data.width + 1));
+        int x0 = plc.col - (plc.flip_x ? (data.width - 1) : 0);
+        int x1 = plc.col + (plc.flip_x ? 0 : (data.width + 1));
         return {x0, x1};
     }
 
@@ -57,32 +64,31 @@ struct DetailPlacer
     void stamp_inst(index_t inst)
     {
         auto &data = insts.at(inst);
-        auto [x0, x1] = cell_hbounds(data, data.col);
+        auto [x0, x1] = cell_hbounds(data, data.plc);
         for (int x = x0; x <= x1; x++) {
-            NPNR_ASSERT(loc2inst.at(x, data.row) == -1);
-            loc2inst.at(x, data.row) = inst;
+            NPNR_ASSERT(loc2inst.at(x, data.plc.row) == -1);
+            loc2inst.at(x, data.plc.row) = inst;
         }
     }
     void unstamp_inst(index_t inst)
     {
         auto &data = insts.at(inst);
-        auto [x0, x1] = cell_hbounds(data, data.col);
+        auto [x0, x1] = cell_hbounds(data, data.plc);
         for (int x = x0; x <= x1; x++) {
-            NPNR_ASSERT(loc2inst.at(x, data.row) == inst);
-            loc2inst.at(x, data.row) = -1;
+            loc2inst.at(x, data.plc.row) = -1;
         }
     }
-    bool check_placement(index_t inst, int new_row, int new_col, pool<index_t> *ripup = nullptr)
+    bool check_placement(index_t inst, PlaceKey new_plc, pool<index_t> *ripup = nullptr)
     {
-        if (new_row < 0 || new_row >= rows)
+        if (new_plc.row < 0 || new_plc.row >= rows)
             return false;
         auto &data = insts.at(inst);
-        auto [x0, x1] = cell_hbounds(data, new_col);
+        auto [x0, x1] = cell_hbounds(data, new_plc);
         if (x0 < 0 || x1 >= cols)
             return false;
         for (int x = x0; x <= x1; x++) {
-            index_t placed = loc2inst.at(x, new_row);
-            if (placed != -1) {
+            index_t placed = loc2inst.at(x, new_plc.row);
+            if (placed != -1 && placed != inst) {
                 if (ripup)
                     ripup->insert(placed);
                 else
@@ -147,7 +153,7 @@ struct DetailPlacer
         int64_t wirelen_delta = 0;
     };
     std::vector<HPWLBox> net_bounds;
-    int64_t curr_wirelen = 0;
+    int64_t curr_wirelen = 0, last_wirelen = 0;
 
     bool ignore_net(store_index<Net> net)
     {
@@ -162,11 +168,6 @@ struct DetailPlacer
         for (auto p : net.inst_ports)
             result.add_pin(port_loc(p));
         return result;
-    }
-
-    CellPlacement get_placement(const InstData &inst)
-    {
-        return CellPlacement{.loc = Point(inst.col * grid.width, row_pos(inst.row)), .orient = inst.get_orient()};
     }
 
     void init_move_change(IncrementalMoveChange &mc)
@@ -191,7 +192,7 @@ struct DetailPlacer
         mc.wirelen_delta = 0;
     }
 
-    void update_move_change(IncrementalMoveChange &mc, index_t inst, CellPlacement old_plc)
+    void update_move_change(IncrementalMoveChange &mc, index_t inst, PlaceKey old_plc)
     {
         CellInstAccess access(netlist, mod, mod.insts[store_index<CellInst>(inst)]);
         for (auto [port_data, port_inst] : access.ports()) {
@@ -199,7 +200,7 @@ struct DetailPlacer
             if (!net || ignore_net(net))
                 continue;
             HPWLBox &curr_bounds = mc.new_net_bounds.at(net.idx());
-            Point old_loc = old_plc.loc + port_data.offset.transform(old_plc.orient);
+            Point old_loc = cell_loc(old_plc) + port_data.offset.transform(old_plc.get_orient());
             Point new_loc = port_loc(PortRef{store_index<CellInst>(inst), port_data.index});
             // For X and Y axes
             for (bool y : {false, true}) {
@@ -304,6 +305,12 @@ struct DetailPlacer
 
     void init()
     {
+        // Init grid
+        ModuleAccess acc(netlist, mod);
+        grid = mod.grid;
+        auto size = acc.getType().size;
+        rows = size.height / grid.height;
+        cols = size.width / grid.width;
         // Init insts
         insts.resize(mod.insts.size());
         for (auto &inst : mod.insts) {
@@ -319,15 +326,16 @@ struct DetailPlacer
                 // Assert on grid
                 NPNR_ASSERT((plc.loc.x % grid.width) == 0);
                 NPNR_ASSERT((plc.loc.y % (2 * grid.height)) == 0);
+                moveable.push_back(inst->index.idx());
             }
-            data.col = plc.loc.x / grid.width;
-            data.row = (inst->placement->loc.y / (2 * grid.height)) * 2;
+            data.plc.col = plc.loc.x / grid.width;
+            data.plc.row = (inst->placement->loc.y / (2 * grid.height)) * 2;
             if (inst->placement->orient == Orientation::FN || inst->placement->orient == Orientation::S)
-                data.row -= 1;
+                data.plc.row -= 1;
             if (inst->placement->orient == Orientation::FN || inst->placement->orient == Orientation::FS)
-                data.flip_x = true;
+                data.plc.flip_x = true;
             else
-                data.flip_x = false;
+                data.plc.flip_x = false;
         }
         // Init nets
         net_bounds.resize(mod.nets.size());
@@ -336,10 +344,139 @@ struct DetailPlacer
             net_bounds.at(net->index.idx()) = get_net_box(*net);
             curr_wirelen += net_bounds.at(net->index.idx()).hpwl();
         }
+        last_wirelen = curr_wirelen;
         init_move_change(move_change);
     }
 
-    void run() { init(); }
+    int n_move = 0, n_accept = 0;
+    double temp = 1e-7;
+    int radius = 3;
+
+    dict<index_t, PlaceKey> moved2old;
+    pool<index_t> to_ripup;
+    bool try_swap(index_t inst, PlaceKey new_plc)
+    {
+        double delta = 0;
+        moved2old.clear();
+        to_ripup.clear();
+        reset_move_change(move_change);
+        // Ripup primary instance
+        auto &data = insts.at(inst);
+        PlaceKey old_plc = data.plc;
+        moved2old[inst] = old_plc;
+        unstamp_inst(inst);
+
+        // Check new location
+        if (!check_placement(inst, new_plc, &to_ripup))
+            goto failed;
+
+        // Check ripped up cells
+        for (auto ripped : to_ripup) {
+            auto &ripped_data = insts.at(ripped);
+            PlaceKey ripped_plc = ripped_data.plc;
+            if (ripped_data.fixed)
+                goto failed;
+            int dx = (ripped_plc.col - new_plc.col);
+            ripped_plc.col = (new_plc.flip_x == old_plc.flip_x) ? (new_plc.col + dx) : (new_plc.col - dx);
+            ripped_plc.row += (new_plc.row - old_plc.row);
+            ripped_plc.flip_x = (new_plc.flip_x == old_plc.flip_x) ? ripped_plc.flip_x : !ripped_plc.flip_x;
+            if (!check_placement(ripped, ripped_plc))
+                goto failed;
+            moved2old[ripped] = ripped_data.plc;
+            unstamp_inst(ripped);
+            ripped_data.plc = new_plc;
+        }
+
+        data.plc = new_plc;
+        stamp_inst(inst);
+        for (auto ripped_inst : to_ripup)
+            stamp_inst(ripped_inst);
+        for (auto moved : moved2old)
+            update_move_change(move_change, moved.first, moved.second);
+        compute_cost_changes(move_change);
+        // SA acceptance criteria
+        delta = move_change.wirelen_delta / std::max<double>(last_wirelen, 0);
+        if (delta < 0 || (temp > 1e-8 && (ctx.rng.rng() / float(0x3fffffff)) <= std::exp(-delta / temp)))
+            ++n_accept;
+        else
+            goto failed;
+        commit_cost_changes(move_change);
+        return true;
+        if (false) {
+        failed:
+            // Revert move
+            for (auto moved : moved2old)
+                unstamp_inst(moved.first);
+            for (auto moved : moved2old) {
+                insts.at(moved.first).plc = moved.second;
+                stamp_inst(moved.first);
+            }
+            return false;
+        }
+    }
+
+    void process_inst(index_t inst)
+    {
+        auto &data = insts.at(inst);
+        PlaceKey new_plc = data.plc;
+        int radius_x = radius * std::max<int>(1, grid.height / grid.width);
+        int radius_y = radius * std::max<int>(1, grid.width / grid.height);
+
+        new_plc.col += (ctx.rng.rng(radius_x * 2 + 1) - radius_x);
+        new_plc.row += (ctx.rng.rng(radius_y * 2 + 1) - radius_y);
+        new_plc.flip_x = ctx.rng.rng(2);
+
+        try_swap(inst, new_plc);
+    }
+
+    void run()
+    {
+        init();
+        log_info("Starting global placement of %d cells.\n", int(moveable.size()));
+        int64_t avg_wirelen = curr_wirelen;
+        int64_t min_wirelen = curr_wirelen;
+        int n_no_progress = 0;
+        temp = 1e-7;
+        radius = 3;
+        bool improved = false;
+        for (int iter = 1;; iter++) {
+            n_move = n_accept = 0;
+            improved = false;
+            if (iter % 5 == 0 || iter == 1)
+                log_info("  at iteration #%d, hpwl=%.fum\n", iter, double(curr_wirelen) / ctx.unit_per_um);
+            for (int m = 0; m < 15; ++m) {
+                for (auto inst : moveable)
+                    process_inst(inst);
+            }
+            if (curr_wirelen < min_wirelen) {
+                min_wirelen = curr_wirelen;
+                improved = true;
+            }
+            if (improved)
+                n_no_progress = 0;
+            else
+                ++n_no_progress;
+            if (temp <= 1e-7 && n_no_progress >= 2) {
+                log_info("  done; at iteration #%d, hpwl=%.fum\n", iter, double(curr_wirelen) / ctx.unit_per_um);
+                break;
+            }
+            double Raccept = double(n_accept) / double(n_move);
+            if ((curr_wirelen < 0.95 * avg_wirelen) && curr_wirelen > 0) {
+                avg_wirelen = 0.8 * avg_wirelen + 0.2 * curr_wirelen;
+            } else {
+                int radius_next = radius * (1.0 - 0.44 + Raccept);
+                radius = std::max<int>(1, std::min<int>(std::max<int>(rows, cols), int(radius_next + 0.5)));
+                if (Raccept > 0.96)
+                    temp *= 0.5;
+                else if (Raccept > 0.8)
+                    temp *= 0.9;
+                else if (Raccept > 0.15 && radius > 1)
+                    temp *= 0.95;
+                else
+                    temp *= 0.8;
+            }
+        }
+    }
 };
 } // namespace
 

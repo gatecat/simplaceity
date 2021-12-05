@@ -89,4 +89,5 @@ m.getNet("vdd").setType(NetType.POWER)
 m.getNet("io_in(0)").setType(NetType.CLOCK)
 
 m.globalPlace()
+m.detailPlace()
 

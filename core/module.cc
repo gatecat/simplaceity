@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 
 #include "context.h"
+#include "detail_placer.h"
 #include "global_placer.h"
 #include "log.h"
 #include "netlist.h"
@@ -90,6 +91,7 @@ struct PyModule
         mod().grid.height = height;
     }
     void globalPlace() { global_placer(*ctx, mod()); }
+    void detailPlace() { detail_placer(*ctx, mod()); }
 };
 
 PyModule PyCellType::intoModule()
@@ -168,7 +170,8 @@ PYBIND11_MODULE(simplaceity, m)
             .def("addInst", &PyModule::addInst)
             .def("getInst", &PyModule::getInst)
             .def("setGrid", &PyModule::setGrid)
-            .def("globalPlace", &PyModule::globalPlace);
+            .def("globalPlace", &PyModule::globalPlace)
+            .def("detailPlace", &PyModule::detailPlace);
 
     py::class_<PyPlcContext>(m, "PyContext")
             .def(py::init<>())

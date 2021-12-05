@@ -679,7 +679,7 @@ struct GlobalPlacer
         rows = size.height / grid.height;
         cols = size.width / grid.width;
         setup_cells();
-        log_info("Starting placement of %d cells.\n", int(var2idx.size()));
+        log_info("Starting global placement of %d cells.\n", int(var2idx.size()));
         log_info("   %d rows; %d cols\n", rows, cols);
     }
 
@@ -726,7 +726,7 @@ struct GlobalPlacer
         for (int idx : var2idx) {
             auto &data = insts.at(idx);
             auto &inst = mod.insts[store_index<CellInst>(idx)];
-            inst.placement = CellPlacement{.loc = Point(data.col * grid.width, data.row * grid.height),
+            inst.placement = CellPlacement{.loc = Point(data.col * grid.width, row_pos(data.row)),
                                            .orient = data.get_orient()};
         }
     }
@@ -739,7 +739,7 @@ struct GlobalPlacer
             do_solve(-1, 1);
             log_info("    initial solver iter %d HPWL: %.fum\n", i, double(hpwl()) / ctx.unit_per_um);
         }
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 10; i++) {
             do_iter(i);
         }
         bind();

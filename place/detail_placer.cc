@@ -381,24 +381,28 @@ struct DetailPlacer
         // Check ripped up cells
         for (auto ripped : to_ripup) {
             auto &ripped_data = insts.at(ripped);
-            PlaceKey ripped_plc = ripped_data.plc;
             if (ripped_data.fixed)
-                goto failed;
-            int dx = (ripped_plc.col - new_plc.col);
-            ripped_plc.col = (new_plc.flip_x == old_plc.flip_x) ? (new_plc.col + dx) : (new_plc.col - dx);
-            ripped_plc.row += (new_plc.row - old_plc.row);
-            ripped_plc.flip_x = (new_plc.flip_x == old_plc.flip_x) ? ripped_plc.flip_x : !ripped_plc.flip_x;
-            if (!check_placement(ripped, ripped_plc))
                 goto failed;
             moved2old[ripped] = ripped_data.plc;
             unstamp_inst(ripped);
-            ripped_data.plc = new_plc;
         }
 
         data.plc = new_plc;
         stamp_inst(inst);
-        for (auto ripped_inst : to_ripup)
-            stamp_inst(ripped_inst);
+
+        for (auto ripped : to_ripup) {
+            auto &ripped_data = insts.at(ripped);
+            PlaceKey ripped_plc = ripped_data.plc;
+            int dx = (ripped_plc.col - new_plc.col);
+            ripped_plc.col = (new_plc.flip_x == old_plc.flip_x) ? (old_plc.col + dx) : (old_plc.col - dx);
+            ripped_plc.row += (old_plc.row - new_plc.row);
+            ripped_plc.flip_x = (new_plc.flip_x == old_plc.flip_x) ? ripped_plc.flip_x : !ripped_plc.flip_x;
+            if (!check_placement(ripped, ripped_plc))
+                goto failed;
+            ripped_data.plc = ripped_plc;
+            stamp_inst(ripped);
+        }
+
         for (auto moved : moved2old)
             update_move_change(move_change, moved.first, moved.second);
         compute_cost_changes(move_change);

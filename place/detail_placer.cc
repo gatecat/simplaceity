@@ -313,6 +313,7 @@ struct DetailPlacer
         cols = size.width / grid.width;
         // Init insts
         insts.resize(mod.insts.size());
+        loc2inst.reset(cols, rows, -1);
         for (auto &inst : mod.insts) {
             auto &data = insts.at(inst->index.idx());
             auto &type = netlist.cell_types[inst->type];
@@ -336,6 +337,7 @@ struct DetailPlacer
                 data.plc.flip_x = true;
             else
                 data.plc.flip_x = false;
+            stamp_inst(inst->index.idx());
         }
         // Init nets
         net_bounds.resize(mod.nets.size());

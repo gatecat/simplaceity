@@ -726,8 +726,8 @@ struct GlobalPlacer
         for (int idx : var2idx) {
             auto &data = insts.at(idx);
             auto &inst = mod.insts[store_index<CellInst>(idx)];
-            inst.placement = CellPlacement{.loc = Point(data.col * grid.width, row_pos(data.row)),
-                                           .orient = data.get_orient()};
+            inst.placement =
+                    CellPlacement{.loc = Point(data.col * grid.width, row_pos(data.row)), .orient = data.get_orient()};
         }
     }
 

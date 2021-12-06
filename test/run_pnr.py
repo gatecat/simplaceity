@@ -32,6 +32,13 @@ def conv_use(t):
     if t == Hur.Net.Type.POWER: return PortUse.POWER
     else: return PortUse.SIGNAL
 
+def conv_orient(o):
+    if o == Orientation.N: return Transformation.Orientation.ID
+    if o == Orientation.S: return Transformation.Orientation.R2
+    if o == Orientation.FN: return Transformation.Orientation.MY
+    if o == Orientation.FS: return Transformation.Orientation.MX
+    else: assert False, o
+
 for lib_cell in flexlib.getCells():
     c = ctx.addCellType(lib_cell.getName())
     bb = lib_cell.getAbutmentBox()
@@ -64,10 +71,14 @@ m = top_type.intoModule()
 
 for net in top_cell.getNets():
     m.addNet(net.getName())
+
+placed_insts = []
+
 for inst in top_cell.getInstances():
     i = m.addInst(inst.getName(), inst.getMasterCell().getName())
     for plug in inst.getConnectedPlugs():
         i.connectPort(plug.getMasterNet().getName(), plug.getNet().getName())
+    placed_insts.append(i)
 
 m.setGrid(u(1.2), u(12))
 
@@ -91,3 +102,12 @@ m.getNet("io_in(0)").setType(NetType.CLOCK)
 m.globalPlace()
 m.detailPlace()
 
+with UpdateSession():
+    for i in placed_insts:
+        cor_inst = top_cell.getInstance(i.getName())
+        loc = i.getLoc()
+        orient = i.getOrient()
+        cor_inst.setTransformation(Transformation(loc.x, loc.y, conv_orient(orient)))
+        cor_inst.setPlacementStatus(Instance.PlacementStatus.FIXED)
+
+CRL.Gds.save(top_cell)

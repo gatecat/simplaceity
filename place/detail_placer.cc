@@ -163,7 +163,8 @@ struct DetailPlacer
 
     bool ignore_net(store_index<Net> net)
     {
-        return false; // TODO
+        auto &net_data = mod.nets[net];
+        return net_data.type == NetType::GROUND || net_data.type == NetType::POWER || net_data.type == NetType::CLOCK;
     }
 
     HPWLBox get_net_box(const Net &net)
@@ -441,10 +442,20 @@ struct DetailPlacer
         try_swap(inst, new_plc);
     }
 
+    void bind()
+    {
+        for (index_t idx : moveable) {
+            auto &data = insts.at(idx);
+            auto &inst = mod.insts[store_index<CellInst>(idx)];
+            inst.placement = CellPlacement{.loc = Point(data.plc.col * grid.width, row_pos(data.plc.row)),
+                                           .orient = data.plc.get_orient()};
+        }
+    }
+
     void run()
     {
         init();
-        log_info("Starting global placement of %d cells.\n", int(moveable.size()));
+        log_info("Starting detail placement of %d cells.\n", int(moveable.size()));
         int64_t avg_wirelen = curr_wirelen;
         int64_t min_wirelen = curr_wirelen;
         int n_no_progress = 0;
@@ -488,6 +499,7 @@ struct DetailPlacer
                     temp *= 0.8;
             }
         }
+        bind();
     }
 };
 } // namespace

@@ -207,7 +207,7 @@ struct GlobalPlacer
                 data.row = std::max<int>(0, std::min<int>(rows - 1, int(data.solver_y + 0.5)));
             } else {
                 data.col =
-                        std::max<int>(data.flip_x ? (data.width - 1) : 0,
+                        std::max<int>(data.flip_x ? data.width : 0,
                                       std::min<int>(cols - (data.flip_x ? 1 : data.width), int(data.solver_x + 0.5)));
             }
         }
@@ -342,7 +342,7 @@ struct GlobalPlacer
         auto &data = insts.at(inst);
         // Compute new clamped position
         int new_row = std::max<int>(0, std::min<int>(rows - 1, int(data.solver_y + 0.5)));
-        int new_col = std::max<int>(data.flip_x ? (data.width - 1) : 0,
+        int new_col = std::max<int>(data.flip_x ? data.width : 0,
                                     std::min<int>(cols - (data.flip_x ? 1 : data.width), int(data.solver_x + 0.5)));
         // Incrementally update bin structures
         int old_bin_x = inst_bin_x(data), old_bin_y = inst_bin_y(data);
@@ -590,8 +590,8 @@ struct GlobalPlacer
         NPNR_ASSERT(inst.height == 1);
         if (row < 0 || row >= rows)
             return false;
-        int col0 = inst.flip_x ? (col - (inst.width - 1)) : col;
-        int col1 = inst.flip_x ? col : (col + (inst.width - 1));
+        int col0 = inst.flip_x ? (col - inst.width) : col;
+        int col1 = inst.flip_x ? (col - 1) : (col + (inst.width - 1));
         for (int x = col0; x <= col1; x++) {
             if (x < 0 || x >= cols)
                 return false;
@@ -604,8 +604,8 @@ struct GlobalPlacer
     {
         // TODO: multi height instances
         NPNR_ASSERT(inst.height == 1);
-        int col0 = inst.flip_x ? (inst.col - (inst.width - 1)) : inst.col;
-        int col1 = inst.flip_x ? inst.col : (inst.col + (inst.width - 1));
+        int col0 = inst.flip_x ? (inst.col - inst.width) : inst.col;
+        int col1 = inst.flip_x ? (inst.col - 1) : (inst.col + (inst.width - 1));
         // log_info("    mark ([%d, %d], %d)\n", col0, col1, inst.row);
         for (int x = col0; x <= col1; x++) {
             NPNR_ASSERT(!occupied.at(inst.row).at(x));

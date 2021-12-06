@@ -55,8 +55,8 @@ struct DetailPlacer
 
     std::pair<int, int> cell_hbounds(const InstData &data, const PlaceKey &plc)
     {
-        int x0 = plc.col - (plc.flip_x ? (data.width - 1) : 0);
-        int x1 = plc.col + (plc.flip_x ? 0 : (data.width - 1));
+        int x0 = plc.col - (plc.flip_x ? data.width : 0);
+        int x1 = plc.col + (plc.flip_x ? -1 : (data.width - 1));
         return {x0, x1};
     }
 

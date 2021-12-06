@@ -130,6 +130,12 @@ struct GlobalPlacer
                 } else {
                     es.add_rhs(mat_row, -var.pos * weight);
                 }
+                if (var.ref) {
+                    auto &port_data = netlist.cell_types[mod.insts[var.ref.inst].type].ports[var.ref.port];
+                    auto offset = port_data.offset.transform(insts.at(var.ref.inst.idx()).get_orient());
+                    es.add_rhs(mat_row,
+                               (yaxis ? (offset.y / double(grid.height)) : (offset.x / double(grid.width))) * -weight);
+                }
                 // TODO: pin offset within cell
             };
             auto process_arc = [&](PortOrPin a, PortOrPin b) {

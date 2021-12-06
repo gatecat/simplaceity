@@ -31,7 +31,7 @@ struct GlobalPlacer
         Orientation get_orient() const
         {
             // Odd rows are flipped in y
-            return (row % 2) ? (flip_x ? Orientation::FN : Orientation::S)
+            return (row % 2) ? (flip_x ? Orientation::S : Orientation::FN)
                              : (flip_x ? Orientation::FS : Orientation::N);
         }
     };
@@ -58,7 +58,7 @@ struct GlobalPlacer
                 data.row = (inst->placement->loc.y / (2 * grid.height)) * 2;
                 if (inst->placement->orient == Orientation::FN || inst->placement->orient == Orientation::S)
                     data.row -= 1;
-                if (inst->placement->orient == Orientation::FN || inst->placement->orient == Orientation::FS)
+                if (inst->placement->orient == Orientation::S || inst->placement->orient == Orientation::FS)
                     data.flip_x = true;
                 else
                     data.flip_x = false;
@@ -606,11 +606,11 @@ struct GlobalPlacer
         NPNR_ASSERT(inst.height == 1);
         int col0 = inst.flip_x ? (inst.col - (inst.width - 1)) : inst.col;
         int col1 = inst.flip_x ? inst.col : (inst.col + (inst.width - 1));
+        // log_info("    mark ([%d, %d], %d)\n", col0, col1, inst.row);
         for (int x = col0; x <= col1; x++) {
             NPNR_ASSERT(!occupied.at(inst.row).at(x));
             occupied.at(inst.row).at(x) = true;
         }
-        // log_info("    mark ([%d, %d], %d)\n", col0, col1, inst.row);
     }
     void legalise_cell(int inst)
     {

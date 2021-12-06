@@ -27,7 +27,7 @@ struct DetailPlacer
         Orientation get_orient() const
         {
             // Odd rows are flipped in y
-            return (row % 2) ? (flip_x ? Orientation::FN : Orientation::S)
+            return (row % 2) ? (flip_x ? Orientation::S : Orientation::FN)
                              : (flip_x ? Orientation::FS : Orientation::N);
         }
     };
@@ -340,7 +340,7 @@ struct DetailPlacer
             data.plc.row = (plc.loc.y / (2 * grid.height)) * 2;
             if (plc.orient == Orientation::FN || plc.orient == Orientation::S)
                 data.plc.row -= 1;
-            if (plc.orient == Orientation::FN || plc.orient == Orientation::FS)
+            if (plc.orient == Orientation::S || plc.orient == Orientation::FS)
                 data.plc.flip_x = true;
             else
                 data.plc.flip_x = false;
